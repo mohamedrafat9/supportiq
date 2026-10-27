@@ -7,8 +7,6 @@ venv/
 .env
 .env.*
 !.env.example
-docker-compose.yml
-
 # Testing and coverage
 .pytest_cache/
 .coverage
