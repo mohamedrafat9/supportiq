@@ -39,4 +39,25 @@ def update_ticket_status(
 
     return ticket
 
+def get_all_tickets(
+        db:Session,
+) -> list[Ticket]:
+    statement = select(Ticket)
+    return db.scalars(statement).all()
+
+
+def delete_ticket_by_id(
+        db:Session,
+        ticket_id:int
+)->bool:
+    ticket=get_ticket_by_id(db,ticket_id)
+    if ticket is None:
+        return False
+    db.delete(ticket)
+    db.commit()
+    return True
+
+
+
+
                               
