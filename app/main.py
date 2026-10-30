@@ -8,3 +8,7 @@ app.include_router(tickets_router)
 def health_check():
     return {"status":"ok"}
 
+
+@app.get("/")
+def root():
+    return {"root":"hey this the root page "}
