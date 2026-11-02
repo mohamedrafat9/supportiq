@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD:str |None=None
     POSTGRES_USER:str |None=None
     POSTGRES_DB:str |None=None
+    TEST_DATABASE_URL:str |None=None
 
     model_config=SettingsConfigDict(
         env_file=".env",
