@@ -5,7 +5,7 @@ from app.db.repositories.ticket_repository import (
     create_ticket,
     delete_ticket_by_id,
     get_ticket_by_id,
-    save_ticket_status,
+    update_ticket_status
 )
 
 
@@ -34,20 +34,20 @@ def update_ticket_status_service(
     ticket_id: int,
     new_status: str,
 ) -> Ticket | None:
-    ticket = get_ticket_by_id(
-        db=db,
-        ticket_id=ticket_id,
-    )
-
-    if ticket is None:
-        return None
-
-    # Business Rule
-    if ticket.status == "closed" and new_status == "in_progress":
-        raise ValueError("Cannot reopen a closed ticket")
-
     try:
-        updated_ticket = save_ticket_status(
+        ticket = get_ticket_by_id(
+            db=db,
+            ticket_id=ticket_id,
+        )
+
+        if ticket is None:
+            return None
+
+        # Business Rule
+        if ticket.status == "closed" and new_status == "in_progress":
+            raise ValueError("Cannot reopen a closed ticket")
+
+        updated_ticket = update_ticket_status(
             db=db,
             ticket=ticket,
             new_status=new_status,

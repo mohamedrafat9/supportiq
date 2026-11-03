@@ -1,5 +1,5 @@
-from sqlalchemy.orm import Session
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from app.db.models.tickets import Ticket
 
@@ -24,8 +24,7 @@ def get_ticket_by_id(
     db: Session,
     ticket_id: int,
 ) -> Ticket | None:
-    statement = select(Ticket).where(Ticket.id == ticket_id)
-    return db.scalars(statement).first()
+    return db.get(Ticket, ticket_id)
 
 
 def get_all_tickets(
@@ -50,7 +49,7 @@ def delete_ticket_by_id(
     return True
 
 
-def save_ticket_status(
+def update_ticket_status(
     db: Session,
     ticket: Ticket,
     new_status: str,
