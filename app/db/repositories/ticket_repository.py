@@ -15,49 +15,48 @@ def create_ticket(
     )
 
     db.add(ticket)
-    db.commit()
-    db.refresh(ticket)
+    db.flush()
 
     return ticket
 
-def get_ticket_by_id(db: Session, ticket_id: int) -> Ticket | None:
+
+def get_ticket_by_id(
+    db: Session,
+    ticket_id: int,
+) -> Ticket | None:
     statement = select(Ticket).where(Ticket.id == ticket_id)
     return db.scalars(statement).first()
 
-def update_ticket_status(
-        db:Session,
-        ticket_id:int,
-        new_status:str
-) -> Ticket |None:
-    ticket = get_ticket_by_id(db,ticket_id)
-
-    if ticket is None:
-        return None
-    ticket.status=new_status
-    db.commit()
-    db.refresh(ticket)
-
-    return ticket
 
 def get_all_tickets(
-        db:Session,
+    db: Session,
 ) -> list[Ticket]:
     statement = select(Ticket)
     return db.scalars(statement).all()
 
 
 def delete_ticket_by_id(
-        db:Session,
-        ticket_id:int
-)->bool:
-    ticket=get_ticket_by_id(db,ticket_id)
+    db: Session,
+    ticket_id: int,
+) -> bool:
+    ticket = get_ticket_by_id(db, ticket_id)
+
     if ticket is None:
         return False
+
     db.delete(ticket)
-    db.commit()
+    db.flush()
+
     return True
 
 
+def save_ticket_status(
+    db: Session,
+    ticket: Ticket,
+    new_status: str,
+) -> Ticket:
+    ticket.status = new_status
 
+    db.flush()
 
-                              
+    return ticket

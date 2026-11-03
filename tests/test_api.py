@@ -135,3 +135,23 @@ def test_root(client):
 
     assert response.status_code==200
     assert response.json()=={"root":"hey this the root page "}
+
+def test_cannot_reopen_closed_ticket(client):
+    response = client.post(
+        "/tickets/",
+        json={"title": "Test ticket"},
+    )
+    ticket_id = response.json()["id"]
+
+    client.put(
+        f"/tickets/{ticket_id}",
+        json={"status": "closed"},
+    )
+
+    response = client.put(
+        f"/tickets/{ticket_id}",
+        json={"status": "in_progress"},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Cannot reopen a closed ticket"

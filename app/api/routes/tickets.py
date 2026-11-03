@@ -1,14 +1,22 @@
-from fastapi import APIRouter, Depends, HTTPException as httpex, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.db.dependencies import get_db
+from app.db.repositories.ticket_repository import (
+    get_all_tickets,
+    get_ticket_by_id,
+)
+from app.schemas.ticket import TicketCreate, TicketRead, TicketUpdate
+from app.services.ticket_service import (
+    create_ticket_service,
+    update_ticket_status_service,
+    delete_ticket_service,
+)
 
-from app.db.repositories.ticket_repository import*
-
-from app.schemas.ticket import*
-
-router = APIRouter(prefix="/tickets", tags=["Tickets"])
-
+router = APIRouter(
+    prefix="/tickets",
+    tags=["Tickets"],
+)
 
 
 @router.post(
@@ -20,7 +28,7 @@ def create_new_ticket(
     ticket_data: TicketCreate,
     db: Session = Depends(get_db),
 ):
-    return create_ticket(
+    return create_ticket_service(
         db=db,
         title=ticket_data.title,
     )
@@ -30,7 +38,7 @@ def create_new_ticket(
     "/",
     response_model=list[TicketRead],
 )
-def read_all_tickets(
+def get_tickets(
     db: Session = Depends(get_db),
 ):
     return get_all_tickets(db=db)
@@ -39,16 +47,18 @@ def read_all_tickets(
 @router.get(
     "/{ticket_id}",
     response_model=TicketRead,
-    status_code=status.HTTP_200_OK
 )
-def read_ticket(
+def get_ticket(
     ticket_id: int,
     db: Session = Depends(get_db),
 ):
-    ticket = get_ticket_by_id(db=db, ticket_id=ticket_id)
+    ticket = get_ticket_by_id(
+        db=db,
+        ticket_id=ticket_id,
+    )
 
     if ticket is None:
-        raise httpex(
+        raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Ticket not found",
         )
@@ -59,40 +69,51 @@ def read_ticket(
 @router.put(
     "/{ticket_id}",
     response_model=TicketRead,
-    status_code=status.HTTP_200_OK
 )
-def update_ticket( 
+def update_ticket(
     ticket_id: int,
-    ticket_data:TicketUpdate,
+    ticket_data: TicketUpdate,
     db: Session = Depends(get_db),
 ):
-    updated_ticket = update_ticket_status(
-        db=db,
-        ticket_id=ticket_id,
-        new_status=ticket_data.status,
-    )
-    if updated_ticket is None:
-        raise httpex(
+    try:
+        ticket = update_ticket_status_service(
+            db=db,
+            ticket_id=ticket_id,
+            new_status=ticket_data.status,
+        )
+
+    except ValueError as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(error),
+        )
+
+    if ticket is None:
+        raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Ticket not found",
         )
 
-
-    return updated_ticket
+    return ticket
 
 
 @router.delete(
     "/{ticket_id}",
-    status_code=status.HTTP_204_NO_CONTENT
+    status_code=status.HTTP_204_NO_CONTENT,
 )
 def delete_ticket(
-    ticket_id:int,
-    db:Session=Depends(get_db)
+    ticket_id: int,
+    db: Session = Depends(get_db),
 ):
-    deletion=delete_ticket_by_id(db=db,ticket_id=ticket_id)
-    if deletion is False:
-        raise httpex(
+    deleted = delete_ticket_service(
+        db=db,
+        ticket_id=ticket_id,
+    )
+
+    if not deleted:
+        raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="the ticket wasn't found"
+            detail="the ticket wasn't found",
         )
-    return None 
+
+    return None
