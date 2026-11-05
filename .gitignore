@@ -20,3 +20,7 @@ htmlcov/
 # Logs and temporary files
 *.log
 tmp/
+
+# User uploaded files
+/storage/documents/*
+!/storage/documents/.gitkeep
