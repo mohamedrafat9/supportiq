@@ -12,6 +12,7 @@ from sqlalchemy import (
 
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import UniqueConstraint
 from .base import Base
 
 class Document(Base):
@@ -21,6 +22,11 @@ class Document(Base):
         CheckConstraint(
             "status IN ('uploaded', 'processing', 'completed', 'failed')",
             name="check_document_status",
+        ),
+        UniqueConstraint(
+            "workspace_id",
+            "content_hash",
+            name="uq_document_workspace_content_hash"
         ),
     )
 
@@ -85,4 +91,9 @@ class Document(Base):
 
     workspace: Mapped["Workspace"] = relationship(
         back_populates="documents",
+    )
+
+    content_hash: Mapped[str] = mapped_column(
+        String(64),
+        nullable=False,
     )
