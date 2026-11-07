@@ -15,7 +15,7 @@ def get_workspace_storage_dir(workspace_id: UUID) -> Path:
 
     return workspace_dir
 
-CHUNK_SIZE = 1024 * 1024  #  1MB
+CHUNK_SIZE = 1024 * 1024  # 1 M B
 
 # 
 async def save_upload_file(
@@ -69,3 +69,12 @@ def discard_upload_file(
     workspace_dir = get_workspace_storage_dir(workspace_id)
     temp_path = workspace_dir / f"{document_id}.part"
     temp_path.unlink(missing_ok=True)
+
+
+def delete_stored_file(
+        workspace_id: UUID,
+        document_id: UUID,
+)-> None:
+    workspace_dir = get_workspace_storage_dir(workspace_id)
+    file_path = workspace_dir / str(document_id)
+    file_path.unlink(missing_ok=True)
