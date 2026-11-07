@@ -25,7 +25,6 @@ async def save_upload_file(
 ) -> tuple[str, str]:
     workspace_dir = get_workspace_storage_dir(workspace_id)
 
-    file_path = workspace_dir / str(document_id)
     temp_path = workspace_dir / f"{document_id}.part"
 
     hasher=hashlib.sha256()
@@ -38,7 +37,6 @@ async def save_upload_file(
                 buffer.write(chunk)
                 hasher.update(chunk)
 
-        temp_path.replace(file_path)
 
     except Exception:
         if temp_file_created:
@@ -46,9 +44,9 @@ async def save_upload_file(
         raise
 
     content_hash = hasher.hexdigest()
-    storage_path = str(file_path.relative_to(STORAGE_ROOT))
+    temp_storage_path = str(temp_path.relative_to(STORAGE_ROOT))
 
-    return storage_path, content_hash
+    return temp_storage_path, content_hash
 
 
 def finalize_upload_file(
@@ -63,18 +61,24 @@ def finalize_upload_file(
     return str(file_path.relative_to(STORAGE_ROOT))
 
 def discard_upload_file(
-        workspace_id: UUID,
-        document_id: UUID,
-)-> None:
-    workspace_dir = get_workspace_storage_dir(workspace_id)
-    temp_path = workspace_dir / f"{document_id}.part"
+    workspace_id: UUID,
+    document_id: UUID,
+) -> None:
+    temp_path = (
+        STORAGE_ROOT
+        / str(workspace_id)
+        / f"{document_id}.part"
+    )
     temp_path.unlink(missing_ok=True)
 
 
 def delete_stored_file(
-        workspace_id: UUID,
-        document_id: UUID,
-)-> None:
-    workspace_dir = get_workspace_storage_dir(workspace_id)
-    file_path = workspace_dir / str(document_id)
+    workspace_id: UUID,
+    document_id: UUID,
+) -> None:
+    file_path = (
+        STORAGE_ROOT
+        / str(workspace_id)
+        / str(document_id)
+    )
     file_path.unlink(missing_ok=True)
