@@ -11,6 +11,9 @@ class Settings(BaseSettings):
     POSTGRES_DB:str |None=None
     TEST_DATABASE_URL:str |None=None
 
+    MAX_UPLOAD_FILE_SIZE_MB: int = 50
+    ALLOWED_FILE_EXTENSIONS:list[str]=[".pdf",".docx",".txt"]
+
     model_config=SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
