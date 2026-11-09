@@ -14,6 +14,20 @@ settings = get_settings()
 
 STORAGE_ROOT = Path(__file__).resolve().parents[2] / "storage" / "documents"
 
+def resolve_storage_path(relative_path: str) -> Path:
+    storage_root = STORAGE_ROOT.resolve()
+    relative = Path(relative_path)
+
+    if relative.is_absolute():
+        raise ValueError("Invalid storage path.")
+
+    file_path = (storage_root / relative).resolve()
+
+    if file_path == storage_root or not file_path.is_relative_to(storage_root):
+        raise ValueError("Invalid storage path.")
+
+    return file_path
+
 def sanitize_filename(filename: str) -> str:
     filename = Path(filename).stem
 
@@ -106,7 +120,7 @@ async def save_upload_file(
 
 
 def finalize_upload_file(temp_storage_path: str) -> str:
-    temp_path = STORAGE_ROOT / temp_storage_path
+    temp_path = resolve_storage_path(temp_storage_path)
 
     final_path = temp_path.with_suffix("")
 
@@ -115,10 +129,10 @@ def finalize_upload_file(temp_storage_path: str) -> str:
     return str(final_path.relative_to(STORAGE_ROOT))
 
 def discard_upload_file(temp_storage_path: str) -> None:
-    temp_path = STORAGE_ROOT / temp_storage_path
+    temp_path = resolve_storage_path(temp_storage_path)
     temp_path.unlink(missing_ok=True)
 
 
 def delete_stored_file(storage_path: str) -> None:
-    file_path = STORAGE_ROOT / storage_path
+    file_path = resolve_storage_path(storage_path)
     file_path.unlink(missing_ok=True)
