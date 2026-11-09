@@ -8,45 +8,46 @@ import app.services.document_storage as document_storage
 from app.db.models import Workspace, Document
 from app.services.document_service import upload_document_service
 from sqlalchemy.exc import IntegrityError
-def test_upload_new_document(db_session, tmp_path, monkeypatch):
-    monkeypatch.setattr(
-        document_storage,
-        "STORAGE_ROOT",
-        tmp_path,
+def create_test_upload(filename: str, content: bytes) -> UploadFile:
+    return UploadFile(
+        filename=filename,
+        file=BytesIO(content),
+        headers={"content-type": "text/plain"},
     )
+
+
+def test_upload_new_document(db_session, tmp_path, monkeypatch):
+    monkeypatch.setattr(document_storage, "STORAGE_ROOT", tmp_path)
 
     workspace = Workspace(name="Test Workspace")
     db_session.add(workspace)
     db_session.flush()
 
- 
     content = b"Hello SupportIQ"
     document_id = uuid4()
 
-    file = UploadFile(
-        filename="test.txt",
-        file=BytesIO(content),
-    )
+    file = create_test_upload("test.txt", content)
 
-    temp_storage_path, content_hash = asyncio.run(
+    temp_storage_path, content_hash, file_size = asyncio.run(
         document_storage.save_upload_file(
             file=file,
+            workspace_name=workspace.name,
             workspace_id=workspace.id,
             document_id=document_id,
         )
     )
 
     temp_path = tmp_path / temp_storage_path
-
     assert temp_path.exists()
 
     document = upload_document_service(
         db=db_session,
         workspace_id=workspace.id,
         document_id=document_id,
+        temp_storage_path=temp_storage_path,
         original_filename="test.txt",
         mime_type="text/plain",
-        file_size_bytes=len(content),
+        file_size_bytes=file_size,
         content_hash=content_hash,
     )
 
@@ -60,10 +61,7 @@ def test_upload_new_document(db_session, tmp_path, monkeypatch):
 
     assert final_path.exists()
     assert final_path.read_bytes() == content
-
-
     assert not temp_path.exists()
-
 
     assert db_session.get(Document, document.id) is not None
 
@@ -76,15 +74,14 @@ def test_upload_duplicate_document(db_session, tmp_path, monkeypatch):
     db_session.flush()
 
     content = b"Hello SupportIQ"
-    first_document_id = uuid4()
-    first_file = UploadFile(
-        filename="first.txt",
-        file=BytesIO(content),
-    )
 
-    _, first_hash = asyncio.run(
+    first_document_id = uuid4()
+    first_file = create_test_upload("first.txt", content)
+
+    first_temp_path, first_hash, first_size = asyncio.run(
         document_storage.save_upload_file(
             file=first_file,
+            workspace_name=workspace.name,
             workspace_id=workspace.id,
             document_id=first_document_id,
         )
@@ -94,22 +91,20 @@ def test_upload_duplicate_document(db_session, tmp_path, monkeypatch):
         db=db_session,
         workspace_id=workspace.id,
         document_id=first_document_id,
+        temp_storage_path=first_temp_path,
         original_filename="first.txt",
         mime_type="text/plain",
-        file_size_bytes=len(content),
+        file_size_bytes=first_size,
         content_hash=first_hash,
     )
 
-
     second_document_id = uuid4()
-    second_file = UploadFile(
-        filename="second.txt",
-        file=BytesIO(content),
-    )
+    second_file = create_test_upload("second.txt", content)
 
-    second_temp_path, second_hash = asyncio.run(
+    second_temp_path, second_hash, second_size = asyncio.run(
         document_storage.save_upload_file(
             file=second_file,
+            workspace_name=workspace.name,
             workspace_id=workspace.id,
             document_id=second_document_id,
         )
@@ -119,24 +114,21 @@ def test_upload_duplicate_document(db_session, tmp_path, monkeypatch):
         db=db_session,
         workspace_id=workspace.id,
         document_id=second_document_id,
+        temp_storage_path=second_temp_path,
         original_filename="second.txt",
         mime_type="text/plain",
-        file_size_bytes=len(content),
+        file_size_bytes=second_size,
         content_hash=second_hash,
     )
 
-
     assert second_document.id == first_document.id
-
 
     documents = db_session.query(Document).filter(
         Document.workspace_id == workspace.id
     ).all()
 
     assert len(documents) == 1
-
     assert not (tmp_path / second_temp_path).exists()
-
 
     first_final_path = tmp_path / first_document.storage_path
     assert first_final_path.exists()
@@ -163,15 +155,12 @@ def test_same_content_in_different_workspaces(
         (workspace2, "file2.txt"),
     ]:
         document_id = uuid4()
+        file = create_test_upload(filename, content)
 
-        file = UploadFile(
-            filename=filename,
-            file=BytesIO(content),
-        )
-
-        _, content_hash = asyncio.run(
+        temp_storage_path, content_hash, file_size = asyncio.run(
             document_storage.save_upload_file(
                 file=file,
+                workspace_name=workspace.name,
                 workspace_id=workspace.id,
                 document_id=document_id,
             )
@@ -181,9 +170,10 @@ def test_same_content_in_different_workspaces(
             db=db_session,
             workspace_id=workspace.id,
             document_id=document_id,
+            temp_storage_path=temp_storage_path,
             original_filename=filename,
             mime_type="text/plain",
-            file_size_bytes=len(content),
+            file_size_bytes=file_size,
             content_hash=content_hash,
         )
 
@@ -206,6 +196,7 @@ def test_same_content_in_different_workspaces(
         ).all()
     ) == 1
 
+
 def test_upload_database_failure_cleans_up_file(
     db_session, tmp_path, monkeypatch
 ):
@@ -218,14 +209,12 @@ def test_upload_database_failure_cleans_up_file(
     content = b"Database failure test"
     document_id = uuid4()
 
-    file = UploadFile(
-        filename="failure.txt",
-        file=BytesIO(content),
-    )
+    file = create_test_upload("failure.txt", content)
 
-    temp_storage_path, content_hash = asyncio.run(
+    temp_storage_path, content_hash, file_size = asyncio.run(
         document_storage.save_upload_file(
             file=file,
+            workspace_name=workspace.name,
             workspace_id=workspace.id,
             document_id=document_id,
         )
@@ -241,18 +230,15 @@ def test_upload_database_failure_cleans_up_file(
                 db=db_session,
                 workspace_id=workspace.id,
                 document_id=document_id,
+                temp_storage_path=temp_storage_path,
                 original_filename="failure.txt",
                 mime_type="text/plain",
-                file_size_bytes=len(content),
+                file_size_bytes=file_size,
                 content_hash=content_hash,
             )
 
-    assert not (tmp_path / temp_storage_path).exists()
-
-    final_path = (
-        tmp_path / str(workspace.id) / str(document_id)
-    )
-    assert not final_path.exists()
+    remaining_files = [path for path in tmp_path.rglob("*") if path.is_file()]
+    assert remaining_files == []
 
     assert db_session.get(Document, document_id) is None
 
@@ -263,17 +249,16 @@ def test_upload_document_to_nonexistent_workspace(
     monkeypatch.setattr(document_storage, "STORAGE_ROOT", tmp_path)
 
     workspace_id = uuid4()
+    workspace_name = "Missing Workspace"
     document_id = uuid4()
     content = b"Nonexistent workspace test"
 
-    file = UploadFile(
-        filename="test.txt",
-        file=BytesIO(content),
-    )
+    file = create_test_upload("test.txt", content)
 
-    temp_storage_path, content_hash = asyncio.run(
+    temp_storage_path, content_hash, file_size = asyncio.run(
         document_storage.save_upload_file(
             file=file,
+            workspace_name=workspace_name,
             workspace_id=workspace_id,
             document_id=document_id,
         )
@@ -284,15 +269,14 @@ def test_upload_document_to_nonexistent_workspace(
             db=db_session,
             workspace_id=workspace_id,
             document_id=document_id,
+            temp_storage_path=temp_storage_path,
             original_filename="test.txt",
             mime_type="text/plain",
-            file_size_bytes=len(content),
+            file_size_bytes=file_size,
             content_hash=content_hash,
         )
 
-    assert not (tmp_path / temp_storage_path).exists()
-
-    final_path = tmp_path / str(workspace_id) / str(document_id)
-    assert not final_path.exists()
+    remaining_files = [path for path in tmp_path.rglob("*") if path.is_file()]
+    assert remaining_files == []
 
     assert db_session.get(Document, document_id) is None

@@ -1,3 +1,4 @@
+
 import asyncio
 from io import BytesIO
 from uuid import uuid4
@@ -10,47 +11,52 @@ from app.services.document_storage import (
     finalize_upload_file,
 )
 
+
 async def main():
     workspace_id = uuid4()
     document_id = uuid4()
+    workspace_name = "Test Workspace"
 
     file = UploadFile(
         filename="test.txt",
-        file=BytesIO(b"Hello SupportIQ")
+        file=BytesIO(b"Hello SupportIQ"),
+        headers={"content-type": "text/plain"},
     )
 
-    storage_path, content_hash = await save_upload_file(
-        file=file,
-        workspace_id=workspace_id,
-        document_id=document_id,
-    )
+    temp_storage_path = None
+    final_storage_path = None
 
-    print("Storage path:", storage_path)
-    print("Hash:", content_hash)
-    print("Hash length:", len(content_hash))
+    try:
+        temp_storage_path, content_hash, file_size = await save_upload_file(
+            file=file,
+            workspace_name=workspace_name,
+            workspace_id=workspace_id,
+            document_id=document_id,
+        )
 
-    temp_path = STORAGE_ROOT / storage_path
+        print("Temporary storage path:", temp_storage_path)
+        print("Hash:", content_hash)
+        print("Hash length:", len(content_hash))
+        print("File size:", file_size)
 
-    print("Temporary file exists:", temp_path.exists())
-    print(
-        "Final file exists:",
-        (temp_path.parent / str(document_id)).exists()
-    )
+        temp_path = STORAGE_ROOT / temp_storage_path
 
-    final_storage_path = finalize_upload_file(
-    workspace_id=workspace_id,
-    document_id=document_id,
-)
+        print("Temporary file exists:", temp_path.exists())
 
-    final_path = STORAGE_ROOT / final_storage_path
+        final_storage_path = finalize_upload_file(temp_storage_path)
 
-    print("Final storage path:", final_storage_path)
-    print("Temporary file exists after finalize:", temp_path.exists())
-    print("Final file exists after finalize:", final_path.exists())
+        final_path = STORAGE_ROOT / final_storage_path
 
-    final_path.unlink(missing_ok=True)
+        print("Final storage path:", final_storage_path)
+        print("Temporary file exists after finalize:", temp_path.exists())
+        print("Final file exists after finalize:", final_path.exists())
 
-    temp_path.unlink(missing_ok=True)
+    finally:
+        if final_storage_path:
+            (STORAGE_ROOT / final_storage_path).unlink(missing_ok=True)
+
+        if temp_storage_path:
+            (STORAGE_ROOT / temp_storage_path).unlink(missing_ok=True)
 
 
 if __name__ == "__main__":
