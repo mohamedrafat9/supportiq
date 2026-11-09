@@ -19,6 +19,7 @@ def get_document_by_content_hash(
 
 def create_document(
         db:Session,
+        document_id:UUID,
         workspace_id:UUID,
         original_filename:str,
         storage_path:str,
@@ -27,6 +28,7 @@ def create_document(
         content_hash:str
     ) -> Document:
     document = Document(
+        id=document_id,
         workspace_id=workspace_id,
         original_filename=original_filename,
         storage_path=storage_path,

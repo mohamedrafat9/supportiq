@@ -17,7 +17,8 @@ from app.services.document_storage import (
 def upload_document_service(
     db: Session,
     workspace_id: UUID,
-    document_id: UUID,
+    document_id:UUID,
+    temp_storage_path: str,
     original_filename: str,
     mime_type: str,
     file_size_bytes: int,
@@ -36,19 +37,18 @@ def upload_document_service(
 
         if existing_document:
             discard_upload_file(
-                workspace_id=workspace_id,
-                document_id=document_id,
+                temp_storage_path
             )
             return existing_document
 
         
         final_storage_path = finalize_upload_file(
-            workspace_id=workspace_id,
-            document_id=document_id,
+            temp_storage_path
         )
 
         document = create_document(
             db=db,
+            document_id=document_id,
             workspace_id=workspace_id,
             original_filename=original_filename,
             storage_path=final_storage_path,
@@ -74,33 +74,21 @@ def upload_document_service(
         )
 
         if final_storage_path is not None:
-            delete_stored_file(
-                workspace_id=workspace_id,
-                document_id=document_id,
-            )
+            delete_stored_file(final_storage_path)
+        else:
+            discard_upload_file(temp_storage_path)
 
         if existing_document:
             return existing_document
-
-        discard_upload_file(
-            workspace_id=workspace_id,
-            document_id=document_id,
-        )
 
         raise
 
     except Exception:
         db.rollback()
 
-        discard_upload_file(
-            workspace_id=workspace_id,
-            document_id=document_id,
-        )
-
         if final_storage_path is not None and not committed:
-            delete_stored_file(
-                workspace_id=workspace_id,
-                document_id=document_id,
-            )
+            delete_stored_file(final_storage_path)
+        elif final_storage_path is None:
+            discard_upload_file(temp_storage_path)
 
         raise

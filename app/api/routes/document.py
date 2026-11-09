@@ -33,16 +33,18 @@ async def upload_document(
             detail="Workspace not found.",
         )
 
-    _, content_hash, file_size = await save_upload_file(
-    file=file,
-    workspace_id=workspace_id,
-    document_id=document_id,
+    temp_storage_path, content_hash, file_size = await save_upload_file(
+        file=file,
+        workspace_name=workspace.name,
+        workspace_id=workspace_id,
+        document_id=document_id,
     )
 
     document = upload_document_service(
         db=db,
         workspace_id=workspace_id,
         document_id=document_id,
+        temp_storage_path=temp_storage_path,
         original_filename=file.filename or "uploaded_file",
         mime_type=file.content_type or "application/octet-stream",
         file_size_bytes=file_size,
