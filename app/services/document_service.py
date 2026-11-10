@@ -1,7 +1,6 @@
 from uuid import UUID
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
-
 from app.db.models.documents import Document
 from app.db.repositories.document_repository import (
     create_document,
@@ -12,7 +11,6 @@ from app.services.document_storage import (
     delete_stored_file,
     discard_upload_file,
 )
-
 
 def upload_document_service(
     db: Session,
