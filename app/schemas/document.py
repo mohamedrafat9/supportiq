@@ -6,7 +6,9 @@ from pydantic import BaseModel, ConfigDict, Field
 DocumentStatus = Literal[
     "uploaded",
     "processing",
+    
     "completed",
+
     "failed",
 ]
 
