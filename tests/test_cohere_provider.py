@@ -8,7 +8,16 @@ from pydantic import SecretStr
 from app.services.embeddings.cohere_provider import (
     CohereEmbeddingProvider,
 )
+import cohere
 
+from app.core.exceptions import (
+    ProviderAuthenticationError,
+    ProviderPermissionError,
+    ProviderRateLimitError,
+    ProviderInvalidRequestError,
+    ProviderUnavailableError,
+    ProviderTimeoutError,
+)
 
 @pytest.fixture
 def mock_settings():
@@ -142,3 +151,40 @@ def test_unexpected_embedding_dimension(provider):
         match="unexpected embedding dimension",
     ):
         provider.embed_documents(["Test document"])
+
+
+@pytest.mark.parametrize(
+    "provider_exception, expected_exception",
+    [
+        (cohere.UnauthorizedError, ProviderAuthenticationError),
+        (cohere.ForbiddenError, ProviderPermissionError),
+        (cohere.TooManyRequestsError, ProviderRateLimitError),
+        (cohere.BadRequestError, ProviderInvalidRequestError),
+        (cohere.ServiceUnavailableError, ProviderUnavailableError),
+        (cohere.InternalServerError, ProviderUnavailableError),
+        (cohere.GatewayTimeoutError, ProviderTimeoutError),
+    ],
+)
+def test_handle_provider_error(
+    provider,
+    provider_exception,
+    expected_exception,
+):
+    original_error = provider_exception(
+        body={"message": "test error"}
+    )
+
+    with pytest.raises(expected_exception) as exc_info:
+        provider._handle_provider_error(original_error)
+
+    assert exc_info.value.__cause__ is original_error
+
+def test_unknown_provider_error_is_reraised(provider):
+    original_error = RuntimeError("Unexpected error")
+
+    provider.client.embed.side_effect = original_error
+
+    with pytest.raises(RuntimeError) as exc_info:
+        provider.embed_documents(["Hello SupportIQ"])
+
+    assert exc_info.value is original_error
