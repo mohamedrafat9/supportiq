@@ -97,3 +97,8 @@ class Document(Base):
         String(64),
         nullable=False,
     )
+    chunks: Mapped[list["Chunk"]] = relationship(
+    back_populates="document",
+    cascade="all, delete-orphan",
+    passive_deletes=True,
+    )
